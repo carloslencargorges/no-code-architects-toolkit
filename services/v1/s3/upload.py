@@ -23,6 +23,7 @@ import requests
 from urllib.parse import urlparse, unquote, quote
 import uuid
 import re
+import mimetypes  # Added
 
 logger = logging.getLogger(__name__)
 
@@ -77,15 +78,21 @@ def stream_upload_to_s3(file_url, custom_filename=None, make_public=False):
             filename = custom_filename
         else:
             filename = get_filename_from_url(file_url)
-        
+
+        # Infer the MIME type of the file
+        mimetype, _ = mimetypes.guess_type(filename)  # Use the final filename
+        if mimetype is None:
+            mimetype = 'application/octet-stream'  # Fallback
+
         # Start a multipart upload
-        logger.info(f"Starting multipart upload for {filename} to bucket {bucket_name}")
+        logger.info(f"Starting multipart upload for {filename} to bucket {bucket_name} with ContentType: {mimetype}")
         acl = 'public-read' if make_public else 'private'
         
         multipart_upload = s3_client.create_multipart_upload(
             Bucket=bucket_name,
             Key=filename,
-            ACL=acl
+            ACL=acl,
+            ContentType=mimetype  # Added ContentType
         )
         
         upload_id = multipart_upload['UploadId']
